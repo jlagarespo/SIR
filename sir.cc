@@ -191,7 +191,7 @@ public:
             };
 
             // Draw them
-            static const sf::Vector2f scale = {10.0f, 3000.0f}; 
+            static const sf::Vector2f scale = {10.0f, 1500.0f}; 
             float y = 0;
             for (int i = 0; i < 3; i++) {
                 line.setPosition(t * scale.x - this->get_size() / 2, y * scale.y - this->get_size() / 2);
@@ -313,6 +313,6 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-/*% g++ sir.cc -o sir -std=c++2a -lsfml-graphics -lsfml-window -lsfml-system
+/*% g++ sir.cc -o sir -std=c++2a -lsfml-graphics -lsfml-window -lsfml-system -O3
  *% ./sir
  */
