@@ -1,11 +1,15 @@
-/*sir.cc -- SIR simulation written in C++20 with SFMl.
- *by Jacob Lagares Pozo (@jlagarespo on github)
+/* sir.cc -- SIR simulation written in C++20 with SFMl.
+ * by Jacob Lagares Pozo (@jlagarespo on github)
  *
- *This program was written in April 3rd 2020, during the coronavirus (SARS-CoV-2 causant of the COVID-19 disease)
- *outbreak.
+ *  This program was written in April 3rd 2020, during the coronavirus (SARS-CoV-2 causant of the COVID-19 disease)
+ * outbreak.
  *
- *SIR stands for Susceptible, Infected and Removed. It is used in epidemiology to model the spread of an
- *infection. More information on https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology#The_SIR_model.
+ * SIR stands for Susceptible, Infected and Removed. It is used in epidemiology to model the spread of an
+ * infection. More information on https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology#The_SIR_mode.
+ *
+ * DISCLAMER:
+ * DO NOT by any means, take this file as an example of how to properly code. This code could be made much better
+ * and also, it's quite ugly.
  */
 
 #include <SFML/Graphics.hpp>
@@ -24,10 +28,18 @@
 
 std::default_random_engine gen;
 
-float speed = 3.0f;
-float infection_radius = 100.0f;
-float infection_chance = 0.0125f;
-float infection_duration = 10.0f;
+float speed = 4.0f;
+float infection_radius = 80.0f;
+float infection_chance = 0.01f;
+float infection_duration = 5.0f;
+
+
+
+const static sf::Color palette[]  = {
+    sf::Color(66, 135, 245),
+    sf::Color(235, 64, 52),
+    sf::Color(80, 80, 80),
+};
 
 
 
@@ -73,16 +85,16 @@ public:
     void draw(sf::RenderWindow& window) {
         if (this->m_state == state::susceptible) {
             this->m_circle.setOrigin(this->get_position());
-            this->m_circle.setFillColor(sf::Color(66, 135, 245));
+            this->m_circle.setFillColor(palette[0]);
             this->m_circle.setOutlineThickness(0);
         } else if (this->m_state == state::infected) {
             this->m_circle.setOrigin(this->get_position());
-            this->m_circle.setFillColor(sf::Color(235, 64, 52));
+            this->m_circle.setFillColor(palette[1]);
             this->m_circle.setOutlineThickness(infection_radius - 20.0f);
             this->m_circle.setOutlineColor(sf::Color(255, 255, 255, 20));
         } else  {
             this->m_circle.setOrigin(this->get_position());
-            this->m_circle.setFillColor(sf::Color(80, 80, 80));
+            this->m_circle.setFillColor(palette[2]);
             this->m_circle.setOutlineThickness(0);
         }
 
@@ -138,7 +150,7 @@ private:
 class sir
 {
 public:
-    sir(int count, float size): m_view({0, 0}, {size, size}), random(-size / 2, size / 2) {
+    sir(int count, float size): m_view({0, 0}, {size, size}), random(-size / 2, size / 2), m_size(size) {
         for (int i = 0; i < count; i++)
             this->m_everyone.push_back(std::make_unique<person>(sf::Vector2f(random(gen), random(gen)), speed, this->m_stats));
 
@@ -160,14 +172,51 @@ public:
     }
 
     int get_count() const { return this->m_everyone.size(); }
-    float get_size() const { return this->m_view.getSize().x; }
+    float get_size() const { return this->m_size; }
 
     std::map<person::state, int>& get_stats() { return this->m_stats; }
+    
+    void draw_stats(sf::RenderWindow& window) {
+        // Rectangle we'll be using
+        sf::RectangleShape line;
+
+        // Loop through the entire history (of ~the~ this universe)
+        for (int t = 0; t < this->m_history.size(); t++) {
+            // Get the stats at that point and put them to proportion
+            auto sts = this->m_history[t];
+            float stats[] = {
+                (float) sts[person::state::susceptible] / this->get_count(),
+                (float) sts[person::state::infected] / this->get_count(),
+                (float) sts[person::state::removed] / this->get_count(),
+            };
+
+            // Draw them
+            static const sf::Vector2f scale = {10.0f, 3000.0f}; 
+            float y = 0;
+            for (int i = 0; i < 3; i++) {
+                line.setPosition(t * scale.x - this->get_size() / 2, y * scale.y - this->get_size() / 2);
+                line.setSize({scale.x, stats[i] * scale.y});
+                line.setFillColor(palette[i]);
+
+                y += stats[i];
+                window.draw(line);
+            }
+        }
+    }
+
+    void record_stats() {
+        this->m_history.push_back(this->m_stats);
+    }
+
+    sf::View& get_view() { return this->m_view; }
+    
 private:
+    float m_size;
     sf::View m_view;
     std::uniform_real_distribution<float> random;
 
     std::map<person::state, int> m_stats;
+    std::vector<std::map<person::state, int>> m_history;
     
     // Actual simulation
     std::vector<std::unique_ptr<person>> m_everyone;
@@ -183,7 +232,7 @@ private:
 int main(int argc, char *argv[])
 {
     // Create an SFML window
-    sf::RenderWindow window(sf::VideoMode(1440, 720), "SIR");
+    sf::RenderWindow window(sf::VideoMode(1000, 1000), "SIR");
     
     // Create a simulation
     sir simulation(2500, 8000);
@@ -197,25 +246,28 @@ int main(int argc, char *argv[])
     text.setPosition(-simulation.get_size() / 2, -simulation.get_size() / 2);
     text.setFillColor(sf::Color::White);
     
-    sf::Clock clock;
     int e = 0;
     int speed_limit = 60;
+    sf::Clock clock;
+    sf::Clock seconds;
     while (window.isOpen()) {
         // Process events
         sf::Event event;
         while (window.pollEvent(event)) {
             switch (event.type) {
             case sf::Event::Closed:
-                std::cout << "shutting down..." << std::endl;
                 window.close();
                 break;
             case sf::Event::KeyPressed:
-                switch (event.key.code) {
+                switch (event.key.code) {/*
                 case sf::Keyboard::Period:
                     speed_limit += 20;
                     break;
                 case sf::Keyboard::Comma:
                     speed_limit -= 20;
+                    break;*/
+                case sf::Keyboard::Escape:
+                    window.close();
                     break;
                 }
                 break;
@@ -225,6 +277,11 @@ int main(int argc, char *argv[])
         // Tick simulation
         float t = clock.restart().asSeconds();
         simulation.tick(simulation.get_size());
+
+        if (seconds.getElapsedTime().asSeconds() > 0.25) {
+            seconds.restart();
+            simulation.record_stats();
+        }
         
         std::stringstream stream;
         stream << std::fixed << std::setprecision(4) << 1.0f / t << " tps " << t << " mspt" << std::endl << "epoch " << e << std::endl << "speed limit " << speed_limit << std::endl;
@@ -232,12 +289,18 @@ int main(int argc, char *argv[])
         stream << "susceptible: " << simulation.get_stats()[person::state::susceptible] << std::endl;
         stream << "infected: " << simulation.get_stats()[person::state::infected] << std::endl;
         stream << "removed: " << simulation.get_stats()[person::state::removed] << std::endl;
+
+        if (simulation.get_stats()[person::state::infected] == 0) {
+            text.setFillColor(sf::Color::Green);
+            stream << "ERRADICATED" << std::endl;
+        }
         
         text.setString(stream.str());
         
         // Draw stuff
         window.clear();
         simulation.draw(window);
+        simulation.draw_stats(window);
         window.draw(text);
         
         // Update window
