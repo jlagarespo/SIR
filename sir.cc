@@ -5,8 +5,9 @@
  * outbreak.
  *
  * SIR stands for Susceptible, Infected and Removed. It is used in epidemiology to model the spread of an
- * infection. More information on https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology#The_SIR_mode.
+ * infection. More information on https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology#The_SIR_model.
  *
+ * This simulation was inspired by 3blue1brown (https://www.youtube.com/watch?v=gxAaO2rsdIs). *
  * DISCLAMER:
  * DO NOT by any means, take this file as an example of how to properly code. This code could be made much better
  * and also, it's quite ugly.
